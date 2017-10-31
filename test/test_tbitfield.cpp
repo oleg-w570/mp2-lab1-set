@@ -2,6 +2,98 @@
 
 #include <gtest.h>
 
+// test fixture
+
+class BigBitFields : public ::testing::Test {
+protected:
+  TBitField bf1;
+  TBitField bf2;
+
+public:
+  BigBitFields() : bf1(50), bf2(100) {
+    bf1.SetBit(1);
+    bf1.SetBit(33);
+    bf1.SetBit(49);
+
+    bf2.SetBit(1);
+    bf2.SetBit(49);
+    bf2.SetBit(99);
+  }
+
+  ~BigBitFields() {}
+};
+
+TEST_F(BigBitFields, or_operator_for_bitfields_with_different_memlen_bigger_size_right)
+{
+  TBitField res(100);
+  res.SetBit(1);
+  res.SetBit(33);
+  res.SetBit(49);
+  res.SetBit(99);
+
+  EXPECT_EQ(res, bf1 | bf2);
+}
+
+TEST_F(BigBitFields, or_operator_for_bitfields_with_different_memlen_bigger_size_left)
+{
+  TBitField res(100);
+  res.SetBit(1);
+  res.SetBit(33);
+  res.SetBit(49);
+  res.SetBit(99);
+
+  EXPECT_EQ(res, bf2 | bf1);
+}
+
+// -----------------------------------------------------------------------------------------------------------
+// Value parameterized test
+// https://github.com/google/googletest/blob/master/googletest/docs/AdvancedGuide.md#value-parameterized-tests
+
+class ParameterizedBitFields : public ::testing::TestWithParam<int>
+{
+protected:
+  TBitField bf1;
+
+public:
+  ParameterizedBitFields(): bf1(GetParam()) 
+  {
+    for (int i = 0; i < GetParam(); i += 10)
+      bf1.SetBit(i);
+  }
+
+  ~ParameterizedBitFields() {}
+};
+
+TEST_P(ParameterizedBitFields, can_create_bitfield)
+{
+  EXPECT_EQ(GetParam(), bf1.GetLength());
+}
+
+TEST_P(ParameterizedBitFields, inverse_is_correct)
+{
+  int maxSize = GetParam() + 32 - GetParam() % 32;
+  TBitField res(maxSize);
+  
+  res = res | (~bf1);
+
+  EXPECT_EQ(1, res.GetBit(GetParam() - 1));
+  EXPECT_EQ(0, res.GetBit(GetParam()));
+  EXPECT_EQ(0, res.GetBit(maxSize - 1));
+}
+
+INSTANTIATE_TEST_CASE_P(Instantiation1,
+  ParameterizedBitFields,
+  ::testing::Values(20, 100, 1000));
+
+int test_values[] = { 30, 300 };
+
+INSTANTIATE_TEST_CASE_P(Instantiation2,
+  ParameterizedBitFields,
+  ::testing::ValuesIn(test_values));
+
+// -----------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------
+
 TEST(TBitField, can_create_bitfield_with_positive_length)
 {
   ASSERT_NO_THROW(TBitField bf(3));
@@ -267,7 +359,7 @@ TEST(TBitField, invert_plus_and_operator_on_different_size_bitfield)
   // testBf = 00001000
   testBf.SetBit(3);
 
-  EXPECT_EQ(secondBf & negFirstBf, testBf);
+  EXPECT_EQ(testBf, secondBf & negFirstBf);
 }
 
 TEST(TBitField, can_invert_many_random_bits_bitfield)
